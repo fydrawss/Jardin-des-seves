@@ -282,6 +282,7 @@ export default function JardinDesSeves() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Quicksand:wght@400;500;600;700&display=swap');
         .jds-script { font-family: 'Caveat', cursive; }
+        .jds-title { font-size: clamp(1.5rem, 7.5vw, 3rem); white-space: nowrap; }
         .dropzone { transition: border-color 0.2s ease, background 0.2s ease; }
         .dropzone.drag { border-color: #6B1F45 !important; background: #F3E9F1 !important; }
       `}</style>
@@ -301,10 +302,12 @@ export default function JardinDesSeves() {
                     borderRadius: "0.25rem",
                   }}
                 ></span>
-                <h1
-                  className="jds-script"
-                  style={{ position: "relative", zIndex: 1, fontSize: "3rem", fontWeight: 700, color: "#6B1F45", lineHeight: 1 }}
+                                <h1
+                  className="jds-script jds-title"
+                  style={{ position: "relative", zIndex: 1, fontWeight: 700, color: "#6B1F45", lineHeight: 1 }}
                 >
+                  Jardin Des Sèves
+                </h1>
                   Jardin Des Sèves
                 </h1>
               </div>
