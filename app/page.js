@@ -47,6 +47,14 @@ function resizeImage(file) {
   });
 }
 
+function getCurrentSeasonFR() {
+  const month = new Date().getMonth();
+  if (month <= 1 || month === 11) return "hiver";
+  if (month >= 2 && month <= 4) return "printemps";
+  if (month >= 5 && month <= 7) return "été";
+  return "automne";
+}
+
 function extractJson(text) {
   const cleaned = text.replace(/```json/gi, "").replace(/```/g, "").trim();
   const start = cleaned.indexOf("{");
@@ -105,6 +113,11 @@ function FlowerResultCard({ flower }) {
     };
   }, [flower.rechercheWikipedia, flower.nom]);
 
+  const currentSeason = getCurrentSeasonFR();
+  const seasons = Array.isArray(flower.saisons) ? flower.saisons : [];
+  const isYearRound = seasons.length >= 4;
+  const inSeason = seasons.includes(currentSeason);
+
   return (
     <div style={{ background: "#FFFFFF", border: "1px solid #EADFE8", borderRadius: "1rem", overflow: "hidden" }}>
       <div style={{ aspectRatio: "4 / 3", background: "#F7F1F6", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -125,6 +138,12 @@ function FlowerResultCard({ flower }) {
         >
           {ROLE_LABELS[flower.role] || flower.role}
         </span>
+        {seasons.length > 0 && (
+          <p className="text-xs mt-2 flex items-center gap-1" style={{ color: isYearRound ? "#8A7C87" : inSeason ? "#39553D" : "#B98A55" }}>
+            <span style={{ width: 6, height: 6, borderRadius: 999, background: isYearRound ? "#B5A6B2" : inSeason ? "#39553D" : "#B98A55", display: "inline-block" }} />
+            {isYearRound ? "Disponible toute l'année" : inSeason ? "De saison actuellement" : "Hors saison (" + seasons.join(", ") + ")"}
+          </p>
+        )}
         {flower.note ? (
           <p className="text-xs mt-2" style={{ color: "#8A7C87" }}>{flower.note}</p>
         ) : null}
@@ -133,12 +152,84 @@ function FlowerResultCard({ flower }) {
   );
 }
 
+const HISTORY_KEY = "jds_historique";
+const MAX_HISTORY = 20;
+
+function makeThumbnail(dataUrl, maxDim) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      let { width, height } = img;
+      const scale = maxDim / Math.max(width, height);
+      if (scale < 1) {
+        width = Math.round(width * scale);
+        height = Math.round(height * scale);
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL("image/jpeg", 0.5));
+    };
+    img.onerror = () => resolve(null);
+    img.src = dataUrl;
+  });
+}
+
 export default function JardinDesSeves() {
   const [uploadedImage, setUploadedImage] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState(null);
   const [result, setResult] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [showHistory, setShowHistory] = useState(false);
   const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(HISTORY_KEY);
+      if (raw) setHistory(JSON.parse(raw));
+    } catch (e) {}
+  }, []);
+
+  async function saveToHistory(image, parsedResult) {
+    try {
+      const thumb = await makeThumbnail(image.dataUrl, 160);
+      const entry = { id: Date.now().toString(), date: new Date().toISOString(), thumb, result: parsedResult };
+      setHistory((prev) => {
+        const next = [entry, ...prev].slice(0, MAX_HISTORY);
+        try {
+          localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
+        } catch (e) {}
+        return next;
+      });
+    } catch (e) {}
+  }
+
+  function viewHistoryEntry(entry) {
+    setResult(entry.result);
+    setUploadedImage({ dataUrl: entry.thumb, base64: null, mediaType: null });
+    setShowHistory(false);
+    setError(null);
+  }
+
+  function deleteHistoryEntry(id) {
+    setHistory((prev) => {
+      const next = prev.filter((h) => h.id !== id);
+      try {
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
+      } catch (e) {}
+      return next;
+    });
+  }
+
+  function clearHistory() {
+    setHistory([]);
+    try {
+      localStorage.removeItem(HISTORY_KEY);
+    } catch (e) {}
+  }
 
   async function handleFile(file) {
     if (!file) return;
@@ -172,6 +263,7 @@ export default function JardinDesSeves() {
       const parsed = JSON.parse(jsonString);
       if (!parsed.fleurs || !Array.isArray(parsed.fleurs)) throw new Error("Format de réponse inattendu");
       setResult(parsed);
+      saveToHistory(uploadedImage, parsed);
     } catch (e) {
       setError("L'analyse a échoué — détail : " + (e && e.message ? e.message : "erreur inconnue"));
     } finally {
@@ -196,39 +288,48 @@ export default function JardinDesSeves() {
 
       <header style={{ background: "#ECDFEB" }}>
         <div style={{ maxWidth: "56rem", margin: "0 auto" }} className="px-4 sm:px-8 pt-12 pb-10">
-          <div style={{ position: "relative", display: "inline-block" }}>
-            <span
-              style={{
-                position: "absolute",
-                inset: "-6px -12px",
-                background: "#F3E2EF",
-                transform: "rotate(-1deg)",
-                zIndex: 0,
-                borderRadius: "0.25rem",
-              }}
-            ></span>
-            <h1
-              className="jds-script"
-              style={{ position: "relative", zIndex: 1, fontSize: "3rem", fontWeight: 700, color: "#6B1F45", lineHeight: 1 }}
-            >
-              Jardin Des Sèves
-            </h1>
-          </div>
-          <div style={{ position: "relative", display: "inline-block", marginTop: "0.5rem" }}>
-            <span style={{ position: "absolute", inset: "-4px -10px", background: "#39553D", zIndex: 0 }}></span>
-            <p
-              style={{
-                position: "relative",
-                zIndex: 1,
-                color: "#FFFFFF",
-                fontWeight: 700,
-                fontSize: "0.8rem",
-                letterSpacing: "0.04em",
-                textTransform: "uppercase",
-              }}
-            >
-              Pour des bouquets qui durent
-            </p>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "1rem" }}>
+            <div>
+              <div style={{ position: "relative", display: "inline-block" }}>
+                <span
+                  style={{
+                    position: "absolute",
+                    inset: "-6px -12px",
+                    background: "#F3E2EF",
+                    transform: "rotate(-1deg)",
+                    zIndex: 0,
+                    borderRadius: "0.25rem",
+                  }}
+                ></span>
+                <h1
+                  className="jds-script"
+                  style={{ position: "relative", zIndex: 1, fontSize: "3rem", fontWeight: 700, color: "#6B1F45", lineHeight: 1 }}
+                >
+                  Jardin Des Sèves
+                </h1>
+              </div>
+              <div style={{ position: "relative", display: "inline-block", marginTop: "0.5rem" }}>
+                <span style={{ position: "absolute", inset: "-4px -10px", background: "#39553D", zIndex: 0 }}></span>
+                <p
+                  style={{
+                    position: "relative",
+                    zIndex: 1,
+                    color: "#FFFFFF",
+                    fontWeight: 700,
+                    fontSize: "0.8rem",
+                    letterSpacing: "0.04em",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Pour des bouquets qui durent
+                </p>
+              </div>
+            </div>
+            <img
+              src="/logo.png"
+              alt="Logo Jardin Des Sèves"
+              style={{ width: "92px", height: "92px", flexShrink: 0, objectFit: "contain" }}
+            />
           </div>
           <p className="text-sm mt-5" style={{ color: "#6B5566", maxWidth: "32rem" }}>
             Dépose une photo de bouquet : l'atelier identifie les fleurs et feuillages utilisés, leur nombre, et te montre comment le reproduire, étape par étape.
@@ -237,6 +338,61 @@ export default function JardinDesSeves() {
       </header>
 
       <main style={{ maxWidth: "56rem", margin: "0 auto" }} className="px-4 sm:px-8 py-10">
+        <div className="flex items-center justify-end mb-4">
+          <button
+            onClick={() => setShowHistory((v) => !v)}
+            className="flex items-center gap-2 text-sm rounded-full px-4 py-2"
+            style={{ border: "1px solid #D8C3D4", color: "#6B1F45", background: showHistory ? "#F3E2EF" : "transparent" }}
+          >
+            Historique {history.length > 0 ? `(${history.length})` : ""}
+          </button>
+        </div>
+
+        {showHistory ? (
+          <div>
+            {history.length === 0 ? (
+              <p className="text-sm" style={{ color: "#8A7C87" }}>Aucune analyse enregistrée pour l'instant.</p>
+            ) : (
+              <>
+                <div
+                  style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: "0.9rem" }}
+                  className="mb-4"
+                >
+                  {history.map((entry) => (
+                    <div key={entry.id} style={{ background: "#FFFFFF", border: "1px solid #EADFE8", borderRadius: "1rem", overflow: "hidden" }}>
+                      <button onClick={() => viewHistoryEntry(entry)} style={{ display: "block", width: "100%", cursor: "pointer" }}>
+                        {entry.thumb ? (
+                          <img src={entry.thumb} alt="Bouquet analysé" style={{ width: "100%", aspectRatio: "4 / 3", objectFit: "cover" }} />
+                        ) : (
+                          <div style={{ aspectRatio: "4 / 3", background: "#F7F1F6" }} />
+                        )}
+                        <div style={{ padding: "0.6rem" }}>
+                          <p className="text-xs" style={{ color: "#8A7C87" }}>
+                            {new Date(entry.date).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" })}
+                          </p>
+                          <p className="text-xs font-medium mt-0.5" style={{ color: "#2B2230" }}>
+                            {entry.result && entry.result.fleurs && entry.result.fleurs[0] ? entry.result.fleurs[0].nom : "Bouquet"}
+                          </p>
+                        </div>
+                      </button>
+                      <button
+                        onClick={() => deleteHistoryEntry(entry.id)}
+                        className="text-xs w-full"
+                        style={{ color: "#B98A55", padding: "0.4rem", borderTop: "1px solid #EADFE8" }}
+                      >
+                        Supprimer
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <button onClick={clearHistory} className="text-xs" style={{ color: "#8A7C87", textDecoration: "underline" }}>
+                  Vider tout l'historique
+                </button>
+              </>
+            )}
+          </div>
+        ) : (
+        <>
         <div
           className="dropzone"
           onDragOver={(e) => {
@@ -286,17 +442,19 @@ export default function JardinDesSeves() {
 
         {uploadedImage && (
           <div className="flex items-center justify-center gap-3 mt-4">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                analyze();
-              }}
-              disabled={isAnalyzing}
-              className="flex items-center gap-2 text-sm font-medium rounded-full px-5 py-2.5"
-              style={{ background: "#6B1F45", color: "#FFFFFF", opacity: isAnalyzing ? 0.7 : 1 }}
-            >
-              <Sparkles size={16} /> {isAnalyzing ? "Analyse en cours…" : "Analyser ce bouquet"}
-            </button>
+            {uploadedImage.base64 && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  analyze();
+                }}
+                disabled={isAnalyzing}
+                className="flex items-center gap-2 text-sm font-medium rounded-full px-5 py-2.5"
+                style={{ background: "#6B1F45", color: "#FFFFFF", opacity: isAnalyzing ? 0.7 : 1 }}
+              >
+                <Sparkles size={16} /> {isAnalyzing ? "Analyse en cours…" : "Analyser ce bouquet"}
+              </button>
+            )}
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -305,7 +463,7 @@ export default function JardinDesSeves() {
               className="flex items-center gap-2 text-sm rounded-full px-4 py-2.5"
               style={{ border: "1px solid #D8C3D4", color: "#6B5566" }}
             >
-              <RotateCcw size={14} /> Recommencer
+              <RotateCcw size={14} /> {uploadedImage.base64 ? "Recommencer" : "Nouvelle photo"}
             </button>
           </div>
         )}
@@ -350,6 +508,8 @@ export default function JardinDesSeves() {
             <Flower2 size={28} />
             <p className="text-sm mt-2">En attente d'une photo de bouquet à analyser.</p>
           </div>
+        )}
+        </>
         )}
       </main>
     </div>
