@@ -55,6 +55,13 @@ function getCurrentSeasonFR() {
   return "automne";
 }
 
+function normalize(str) {
+  return (str || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
 function extractJson(text) {
   const cleaned = text.replace(/```json/gi, "").replace(/```/g, "").trim();
   const start = cleaned.indexOf("{");
@@ -184,6 +191,7 @@ export default function JardinDesSeves() {
   const [result, setResult] = useState(null);
   const [history, setHistory] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [historySearch, setHistorySearch] = useState("");
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -302,12 +310,10 @@ export default function JardinDesSeves() {
                     borderRadius: "0.25rem",
                   }}
                 ></span>
-                                <h1
+                <h1
                   className="jds-script jds-title"
                   style={{ position: "relative", zIndex: 1, fontWeight: 700, color: "#6B1F45", lineHeight: 1 }}
                 >
-                  Jardin Des Sèves
-                </h1>
                   Jardin Des Sèves
                 </h1>
               </div>
@@ -357,37 +363,62 @@ export default function JardinDesSeves() {
               <p className="text-sm" style={{ color: "#8A7C87" }}>Aucune analyse enregistrée pour l'instant.</p>
             ) : (
               <>
-                <div
-                  style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: "0.9rem" }}
-                  className="mb-4"
-                >
-                  {history.map((entry) => (
-                    <div key={entry.id} style={{ background: "#FFFFFF", border: "1px solid #EADFE8", borderRadius: "1rem", overflow: "hidden" }}>
-                      <button onClick={() => viewHistoryEntry(entry)} style={{ display: "block", width: "100%", cursor: "pointer" }}>
-                        {entry.thumb ? (
-                          <img src={entry.thumb} alt="Bouquet analysé" style={{ width: "100%", aspectRatio: "4 / 3", objectFit: "cover" }} />
-                        ) : (
-                          <div style={{ aspectRatio: "4 / 3", background: "#F7F1F6" }} />
-                        )}
-                        <div style={{ padding: "0.6rem" }}>
-                          <p className="text-xs" style={{ color: "#8A7C87" }}>
-                            {new Date(entry.date).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" })}
-                          </p>
-                          <p className="text-xs font-medium mt-0.5" style={{ color: "#2B2230" }}>
-                            {entry.result && entry.result.fleurs && entry.result.fleurs[0] ? entry.result.fleurs[0].nom : "Bouquet"}
-                          </p>
+                <input
+                  type="text"
+                  value={historySearch}
+                  onChange={(e) => setHistorySearch(e.target.value)}
+                  placeholder="Rechercher une fleur…"
+                  className="text-sm mb-4"
+                  style={{ width: "100%", padding: "0.6rem 0.9rem", borderRadius: "0.75rem", border: "1px solid #D8C3D4", background: "#FFFFFF", color: "#2B2230" }}
+                />
+                {(() => {
+                  const filtered = historySearch.trim()
+                    ? history.filter((entry) =>
+                        entry.result &&
+                        Array.isArray(entry.result.fleurs) &&
+                        entry.result.fleurs.some((f) => normalize(f.nom).includes(normalize(historySearch)))
+                      )
+                    : history;
+                  if (filtered.length === 0) {
+                    return <p className="text-sm" style={{ color: "#8A7C87" }}>Aucun bouquet trouvé pour « {historySearch} ».</p>;
+                  }
+                  return (
+                    <div
+                      style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: "0.9rem" }}
+                      className="mb-4"
+                    >
+                      {filtered.map((entry) => (
+                        <div key={entry.id} style={{ background: "#FFFFFF", border: "1px solid #EADFE8", borderRadius: "1rem", overflow: "hidden" }}>
+                          <button onClick={() => viewHistoryEntry(entry)} style={{ display: "block", width: "100%", cursor: "pointer" }}>
+                            {entry.thumb ? (
+                              <img src={entry.thumb} alt="Bouquet analysé" style={{ width: "100%", aspectRatio: "4 / 3", objectFit: "cover" }} />
+                            ) : (
+                              <div style={{ aspectRatio: "4 / 3", background: "#F7F1F6" }} />
+                            )}
+                            <div style={{ padding: "0.6rem" }}>
+                              <p className="text-xs" style={{ color: "#8A7C87" }}>
+                                {new Date(entry.date).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" })}
+                              </p>
+                              <p className="text-xs font-medium mt-0.5" style={{ color: "#2B2230" }}>
+                                {entry.result && entry.result.fleurs && entry.result.fleurs[0] ? entry.result.fleurs[0].nom : "Bouquet"}
+                              </p>
+                              {entry.result && entry.result.palette ? (
+                                <p className="text-xs mt-0.5" style={{ color: "#9C6B82" }}>{entry.result.palette}</p>
+                              ) : null}
+                            </div>
+                          </button>
+                          <button
+                            onClick={() => deleteHistoryEntry(entry.id)}
+                            className="text-xs w-full"
+                            style={{ color: "#B98A55", padding: "0.4rem", borderTop: "1px solid #EADFE8" }}
+                          >
+                            Supprimer
+                          </button>
                         </div>
-                      </button>
-                      <button
-                        onClick={() => deleteHistoryEntry(entry.id)}
-                        className="text-xs w-full"
-                        style={{ color: "#B98A55", padding: "0.4rem", borderTop: "1px solid #EADFE8" }}
-                      >
-                        Supprimer
-                      </button>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  );
+                })()}
                 <button onClick={clearHistory} className="text-xs" style={{ color: "#8A7C87", textDecoration: "underline" }}>
                   Vider tout l'historique
                 </button>
@@ -480,6 +511,14 @@ export default function JardinDesSeves() {
         {result && (
           <div className="mt-10">
             <h2 className="jds-script" style={{ fontSize: "1.8rem", color: "#6B1F45" }}>Composition identifiée</h2>
+            {result.palette ? (
+              <span
+                className="inline-block text-xs font-medium mt-1 px-3 py-1 rounded-full"
+                style={{ background: "#F3E2EF", color: "#6B1F45" }}
+              >
+                🎨 {result.palette}
+              </span>
+            ) : null}
             <div
               style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: "0.9rem" }}
               className="mt-3"
