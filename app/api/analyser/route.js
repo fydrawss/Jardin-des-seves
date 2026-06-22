@@ -5,15 +5,19 @@ Réponds UNIQUEMENT avec un objet JSON valide, sans texte avant ni après, sans 
   "fleurs": [
     { "nom": "nom commun en français", "rechercheWikipedia": "nom en anglais ou latin pour une recherche Wikipedia", "quantite": nombre, "role": "vedette", "note": "", "saisons": ["printemps"] }
   ],
-  "etapes": ["étape 1", "étape 2"]
+  "etapes": ["étape 1", "étape 2"],
+  "emballage": [
+    { "papierInterieur": "couleur et matière du papier intérieur", "papierExterieur": "couleur et matière du papier extérieur", "ruban": "couleur et type de ruban", "harmonie": "explication courte du choix des couleurs" }
+  ]
 }
-Le champ "palette" décrit en 2 à 4 mots, avec un vocabulaire de fleuriste, la tonalité chromatique d'ensemble du bouquet (exemples : "Rosé pastel", "Champagne et crème", "Blanc et verdure", "Tons chauds corail", "Violet et prune", "Bicolore rose et blanc").
-Le champ "role" doit être l'une de ces valeurs : "vedette", "soutien", "feuillage", "remplissage".
-Le champ "quantite" est ton estimation du nombre de tiges visibles (nombre entier).
-Le champ "note" est une courte précision uniquement si tu as un doute sur l'identification, sinon une chaîne vide.
-Le champ "saisons" liste, parmi "printemps", "été", "automne", "hiver", la ou les saisons naturelles de floraison de cette fleur sous climat tempéré (France). Si la fleur ou le feuillage est disponible toute l'année (culture sous serre, feuillage persistant), mets les 4 saisons.
-Limite-toi à 8 éléments maximum, les plus clairement identifiables.
-Le champ "etapes" contient 5 à 7 étapes concises expliquant comment assembler ce bouquet à la main, dans l'ordre professionnel : base de feuillage, fleurs vedettes, fleurs de soutien, fleurs de remplissage, finitions, liage du bouquet.
+Le champ "palette" décrit en 2 à 4 mots la tonalité chromatique du bouquet (ex: "Rosé pastel", "Champagne et crème", "Blanc et verdure").
+Le champ "role" doit être : "vedette", "soutien", "feuillage" ou "remplissage".
+Le champ "quantite" est le nombre de tiges estimé (entier).
+Le champ "note" est une courte précision si doute, sinon chaîne vide.
+Le champ "saisons" liste parmi "printemps", "été", "automne", "hiver" les saisons naturelles de floraison sous climat tempéré français. Si disponible toute l'année, mets les 4 saisons.
+Limite-toi à 8 éléments maximum dans "fleurs".
+Le champ "etapes" contient 5 à 7 étapes concises d'assemblage dans l'ordre professionnel.
+Le champ "emballage" contient 2 propositions d'emballage complémentaires qui mettent en valeur ce bouquet spécifique. Pour chaque proposition, pense au cercle chromatique : contraste, analogie ou camaïeu. Sois précis sur les matières (papier kraft, papier de soie, papier feutré, papier calque, raphia, bolduc, ruban satiné, etc.).
 Sois concis et précis.`;
 
 export async function POST(request) {
@@ -42,7 +46,7 @@ export async function POST(request) {
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-6",
-        max_tokens: 1000,
+        max_tokens: 1500,
         system: SYSTEM_PROMPT,
         messages: [
           {
