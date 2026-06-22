@@ -62,6 +62,20 @@ function normalize(str) {
     .replace(/[\u0300-\u036f]/g, "");
 }
 
+function categorizePalette(text) {
+  const t = normalize(text);
+  if (/rouge|corail|brique|carmin/.test(t)) return { label: "Rouge & corail", emoji: "🌹" };
+  if (/orange|abricot|peche|cuivr/.test(t)) return { label: "Orangé & cuivré", emoji: "🧡" };
+  if (/jaune|dore|moutarde/.test(t)) return { label: "Jaune & doré", emoji: "🌻" };
+  if (/vert|verdure|olive|sauge/.test(t)) return { label: "Vert & verdure", emoji: "🌿" };
+  if (/champagne|beige|nude/.test(t)) return { label: "Champagne & nude", emoji: "🤎" };
+  if (/blanc|ivoire|creme/.test(t)) return { label: "Blanc & ivoire", emoji: "🤍" };
+  if (/rose|pastel|fuchsia/.test(t)) return { label: "Rosé & pastel", emoji: "🌸" };
+  if (/violet|prune|mauve|lilas/.test(t)) return { label: "Violet & prune", emoji: "🪻" };
+  if (/bleu/.test(t)) return { label: "Bleu", emoji: "💙" };
+  return { label: "Tons mélangés", emoji: "🎨" };
+}
+
 function extractJson(text) {
   const cleaned = text.replace(/```json/gi, "").replace(/```/g, "").trim();
   const start = cleaned.indexOf("{");
@@ -108,16 +122,10 @@ function FlowerResultCard({ flower }) {
     setImgState("loading");
     fetchFlowerImage(flower.rechercheWikipedia || flower.nom).then((src) => {
       if (cancelled) return;
-      if (src) {
-        setImgSrc(src);
-        setImgState("ok");
-      } else {
-        setImgState("empty");
-      }
+      if (src) { setImgSrc(src); setImgState("ok"); }
+      else setImgState("empty");
     });
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [flower.rechercheWikipedia, flower.nom]);
 
   const currentSeason = getCurrentSeasonFR();
@@ -129,9 +137,7 @@ function FlowerResultCard({ flower }) {
     <div style={{ background: "#FFFFFF", border: "1px solid #EADFE8", borderRadius: "1rem", overflow: "hidden" }}>
       <div style={{ aspectRatio: "4 / 3", background: "#F7F1F6", display: "flex", alignItems: "center", justifyContent: "center" }}>
         {imgState === "loading" && <span style={{ fontSize: "0.75rem", color: "#9C6B82" }}>chargement…</span>}
-        {imgState === "ok" && (
-          <img src={imgSrc} alt={flower.nom} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-        )}
+        {imgState === "ok" && <img src={imgSrc} alt={flower.nom} style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
         {imgState === "empty" && <GenericFlowerIcon />}
       </div>
       <div style={{ padding: "0.9rem" }}>
@@ -139,10 +145,8 @@ function FlowerResultCard({ flower }) {
           <span className="font-medium text-sm" style={{ color: "#2B2230" }}>{flower.nom}</span>
           <span className="text-xs font-medium" style={{ color: "#6B1F45", flexShrink: 0 }}>× {flower.quantite}</span>
         </div>
-        <span
-          className="inline-block text-xs mt-1 px-2 py-0.5 rounded-full"
-          style={{ background: (ROLE_COLORS[flower.role] || "#9C6B82") + "1A", color: ROLE_COLORS[flower.role] || "#9C6B82" }}
-        >
+        <span className="inline-block text-xs mt-1 px-2 py-0.5 rounded-full"
+          style={{ background: (ROLE_COLORS[flower.role] || "#9C6B82") + "1A", color: ROLE_COLORS[flower.role] || "#9C6B82" }}>
           {ROLE_LABELS[flower.role] || flower.role}
         </span>
         {seasons.length > 0 && (
@@ -151,9 +155,34 @@ function FlowerResultCard({ flower }) {
             {isYearRound ? "Disponible toute l'année" : inSeason ? "De saison actuellement" : "Hors saison (" + seasons.join(", ") + ")"}
           </p>
         )}
-        {flower.note ? (
-          <p className="text-xs mt-2" style={{ color: "#8A7C87" }}>{flower.note}</p>
-        ) : null}
+        {flower.note ? <p className="text-xs mt-2" style={{ color: "#8A7C87" }}>{flower.note}</p> : null}
+      </div>
+    </div>
+  );
+}
+
+function EmballageCard({ proposition, index }) {
+  return (
+    <div style={{ background: "#FFFFFF", border: "1px solid #EADFE8", borderRadius: "1rem", padding: "1rem" }}>
+      <p className="text-xs font-semibold mb-2" style={{ color: "#6B1F45" }}>Proposition {index + 1}</p>
+      <div className="flex flex-col gap-1.5">
+        <div className="flex gap-2 text-xs" style={{ color: "#2B2230" }}>
+          <span style={{ color: "#9C6B82", flexShrink: 0 }}>Papier intérieur</span>
+          <span>{proposition.papierInterieur}</span>
+        </div>
+        <div className="flex gap-2 text-xs" style={{ color: "#2B2230" }}>
+          <span style={{ color: "#9C6B82", flexShrink: 0 }}>Papier extérieur</span>
+          <span>{proposition.papierExterieur}</span>
+        </div>
+        <div className="flex gap-2 text-xs" style={{ color: "#2B2230" }}>
+          <span style={{ color: "#9C6B82", flexShrink: 0 }}>Ruban</span>
+          <span>{proposition.ruban}</span>
+        </div>
+        {proposition.harmonie && (
+          <p className="text-xs mt-1 pt-1" style={{ color: "#8A7C87", borderTop: "1px solid #F3EAF1" }}>
+            {proposition.harmonie}
+          </p>
+        )}
       </div>
     </div>
   );
@@ -168,15 +197,10 @@ function makeThumbnail(dataUrl, maxDim) {
     img.onload = () => {
       let { width, height } = img;
       const scale = maxDim / Math.max(width, height);
-      if (scale < 1) {
-        width = Math.round(width * scale);
-        height = Math.round(height * scale);
-      }
+      if (scale < 1) { width = Math.round(width * scale); height = Math.round(height * scale); }
       const canvas = document.createElement("canvas");
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(img, 0, 0, width, height);
+      canvas.width = width; canvas.height = height;
+      canvas.getContext("2d").drawImage(img, 0, 0, width, height);
       resolve(canvas.toDataURL("image/jpeg", 0.5));
     };
     img.onerror = () => resolve(null);
@@ -191,6 +215,7 @@ export default function JardinDesSeves() {
   const [result, setResult] = useState(null);
   const [history, setHistory] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [showPalette, setShowPalette] = useState(false);
   const [historySearch, setHistorySearch] = useState("");
   const fileInputRef = useRef(null);
 
@@ -207,9 +232,7 @@ export default function JardinDesSeves() {
       const entry = { id: Date.now().toString(), date: new Date().toISOString(), thumb, result: parsedResult };
       setHistory((prev) => {
         const next = [entry, ...prev].slice(0, MAX_HISTORY);
-        try {
-          localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
-        } catch (e) {}
+        try { localStorage.setItem(HISTORY_KEY, JSON.stringify(next)); } catch (e) {}
         return next;
       });
     } catch (e) {}
@@ -219,30 +242,26 @@ export default function JardinDesSeves() {
     setResult(entry.result);
     setUploadedImage({ dataUrl: entry.thumb, base64: null, mediaType: null });
     setShowHistory(false);
+    setShowPalette(false);
     setError(null);
   }
 
   function deleteHistoryEntry(id) {
     setHistory((prev) => {
       const next = prev.filter((h) => h.id !== id);
-      try {
-        localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
-      } catch (e) {}
+      try { localStorage.setItem(HISTORY_KEY, JSON.stringify(next)); } catch (e) {}
       return next;
     });
   }
 
   function clearHistory() {
     setHistory([]);
-    try {
-      localStorage.removeItem(HISTORY_KEY);
-    } catch (e) {}
+    try { localStorage.removeItem(HISTORY_KEY); } catch (e) {}
   }
 
   async function handleFile(file) {
     if (!file) return;
-    setError(null);
-    setResult(null);
+    setError(null); setResult(null);
     try {
       const img = await resizeImage(file);
       setUploadedImage(img);
@@ -253,9 +272,7 @@ export default function JardinDesSeves() {
 
   async function analyze() {
     if (!uploadedImage) return;
-    setIsAnalyzing(true);
-    setError(null);
-    setResult(null);
+    setIsAnalyzing(true); setError(null); setResult(null);
     try {
       const response = await fetch("/api/analyser", {
         method: "POST",
@@ -280,9 +297,7 @@ export default function JardinDesSeves() {
   }
 
   function reset() {
-    setUploadedImage(null);
-    setResult(null);
-    setError(null);
+    setUploadedImage(null); setResult(null); setError(null);
   }
 
   return (
@@ -300,45 +315,19 @@ export default function JardinDesSeves() {
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "1rem" }}>
             <div>
               <div style={{ position: "relative", display: "inline-block" }}>
-                <span
-                  style={{
-                    position: "absolute",
-                    inset: "-6px -12px",
-                    background: "#F3E2EF",
-                    transform: "rotate(-1deg)",
-                    zIndex: 0,
-                    borderRadius: "0.25rem",
-                  }}
-                ></span>
-                <h1
-                  className="jds-script jds-title"
-                  style={{ position: "relative", zIndex: 1, fontWeight: 700, color: "#6B1F45", lineHeight: 1 }}
-                >
+                <span style={{ position: "absolute", inset: "-6px -12px", background: "#F3E2EF", transform: "rotate(-1deg)", zIndex: 0, borderRadius: "0.25rem" }}></span>
+                <h1 className="jds-script jds-title" style={{ position: "relative", zIndex: 1, fontWeight: 700, color: "#6B1F45", lineHeight: 1 }}>
                   Jardin Des Sèves
                 </h1>
               </div>
               <div style={{ position: "relative", display: "inline-block", marginTop: "0.5rem" }}>
                 <span style={{ position: "absolute", inset: "-4px -10px", background: "#39553D", zIndex: 0 }}></span>
-                <p
-                  style={{
-                    position: "relative",
-                    zIndex: 1,
-                    color: "#FFFFFF",
-                    fontWeight: 700,
-                    fontSize: "0.8rem",
-                    letterSpacing: "0.04em",
-                    textTransform: "uppercase",
-                  }}
-                >
+                <p style={{ position: "relative", zIndex: 1, color: "#FFFFFF", fontWeight: 700, fontSize: "0.8rem", letterSpacing: "0.04em", textTransform: "uppercase" }}>
                   Pour des bouquets qui durent
                 </p>
               </div>
             </div>
-            <img
-              src="/logo.png"
-              alt="Logo Jardin Des Sèves"
-              style={{ width: "92px", height: "92px", flexShrink: 0, objectFit: "contain" }}
-            />
+            <img src="/logo.png" alt="Logo Jardin Des Sèves" style={{ width: "92px", height: "92px", flexShrink: 0, objectFit: "contain" }} />
           </div>
           <p className="text-sm mt-5" style={{ color: "#6B5566", maxWidth: "32rem" }}>
             Dépose une photo de bouquet : l'atelier identifie les fleurs et feuillages utilisés, leur nombre, et te montre comment le reproduire, étape par étape.
@@ -347,71 +336,92 @@ export default function JardinDesSeves() {
       </header>
 
       <main style={{ maxWidth: "56rem", margin: "0 auto" }} className="px-4 sm:px-8 py-10">
-        <div className="flex items-center justify-end mb-4">
+        <div className="flex items-center justify-end gap-2 mb-4">
           <button
-            onClick={() => setShowHistory((v) => !v)}
-            className="flex items-center gap-2 text-sm rounded-full px-4 py-2"
+            onClick={() => { setShowPalette((v) => !v); setShowHistory(false); }}
+            className="text-sm rounded-full px-4 py-2"
+            style={{ border: "1px solid #D8C3D4", color: "#6B1F45", background: showPalette ? "#F3E2EF" : "transparent" }}
+          >
+            Par couleur
+          </button>
+          <button
+            onClick={() => { setShowHistory((v) => !v); setShowPalette(false); }}
+            className="text-sm rounded-full px-4 py-2"
             style={{ border: "1px solid #D8C3D4", color: "#6B1F45", background: showHistory ? "#F3E2EF" : "transparent" }}
           >
             Historique {history.length > 0 ? `(${history.length})` : ""}
           </button>
         </div>
 
-        {showHistory ? (
+        {showPalette ? (
+          <div>
+            {(() => {
+              const withPalette = history.filter((e) => e.result && e.result.palette);
+              if (withPalette.length === 0) return (
+                <p className="text-sm" style={{ color: "#8A7C87" }}>
+                  Aucun bouquet classé pour l'instant. Analyse un nouveau bouquet pour commencer.
+                </p>
+              );
+              const groups = {};
+              withPalette.forEach((entry) => {
+                const cat = categorizePalette(entry.result.palette);
+                if (!groups[cat.label]) groups[cat.label] = { emoji: cat.emoji, entries: [] };
+                groups[cat.label].entries.push(entry);
+              });
+              return Object.entries(groups).map(([label, group]) => (
+                <div key={label} className="mb-7">
+                  <h3 className="text-sm font-medium mb-2" style={{ color: "#6B1F45" }}>
+                    {group.emoji} {label} <span style={{ color: "#9C8C97", fontWeight: 400 }}>({group.entries.length})</span>
+                  </h3>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: "0.7rem" }}>
+                    {group.entries.map((entry) => (
+                      <button key={entry.id} onClick={() => viewHistoryEntry(entry)}
+                        style={{ background: "#FFFFFF", border: "1px solid #EADFE8", borderRadius: "0.85rem", overflow: "hidden", cursor: "pointer" }}>
+                        {entry.thumb
+                          ? <img src={entry.thumb} alt="Bouquet" style={{ width: "100%", aspectRatio: "4 / 3", objectFit: "cover" }} />
+                          : <div style={{ aspectRatio: "4 / 3", background: "#F7F1F6" }} />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ));
+            })()}
+          </div>
+        ) : showHistory ? (
           <div>
             {history.length === 0 ? (
               <p className="text-sm" style={{ color: "#8A7C87" }}>Aucune analyse enregistrée pour l'instant.</p>
             ) : (
               <>
-                <input
-                  type="text"
-                  value={historySearch}
-                  onChange={(e) => setHistorySearch(e.target.value)}
-                  placeholder="Rechercher une fleur…"
-                  className="text-sm mb-4"
-                  style={{ width: "100%", padding: "0.6rem 0.9rem", borderRadius: "0.75rem", border: "1px solid #D8C3D4", background: "#FFFFFF", color: "#2B2230" }}
-                />
+                <input type="text" value={historySearch} onChange={(e) => setHistorySearch(e.target.value)}
+                  placeholder="Rechercher une fleur…" className="text-sm mb-4"
+                  style={{ width: "100%", padding: "0.6rem 0.9rem", borderRadius: "0.75rem", border: "1px solid #D8C3D4", background: "#FFFFFF", color: "#2B2230" }} />
                 {(() => {
                   const filtered = historySearch.trim()
-                    ? history.filter((entry) =>
-                        entry.result &&
-                        Array.isArray(entry.result.fleurs) &&
-                        entry.result.fleurs.some((f) => normalize(f.nom).includes(normalize(historySearch)))
-                      )
+                    ? history.filter((entry) => entry.result && Array.isArray(entry.result.fleurs) &&
+                        entry.result.fleurs.some((f) => normalize(f.nom).includes(normalize(historySearch))))
                     : history;
-                  if (filtered.length === 0) {
-                    return <p className="text-sm" style={{ color: "#8A7C87" }}>Aucun bouquet trouvé pour « {historySearch} ».</p>;
-                  }
+                  if (filtered.length === 0) return <p className="text-sm" style={{ color: "#8A7C87" }}>Aucun bouquet trouvé pour « {historySearch} ».</p>;
                   return (
-                    <div
-                      style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: "0.9rem" }}
-                      className="mb-4"
-                    >
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: "0.9rem" }} className="mb-4">
                       {filtered.map((entry) => (
                         <div key={entry.id} style={{ background: "#FFFFFF", border: "1px solid #EADFE8", borderRadius: "1rem", overflow: "hidden" }}>
                           <button onClick={() => viewHistoryEntry(entry)} style={{ display: "block", width: "100%", cursor: "pointer" }}>
-                            {entry.thumb ? (
-                              <img src={entry.thumb} alt="Bouquet analysé" style={{ width: "100%", aspectRatio: "4 / 3", objectFit: "cover" }} />
-                            ) : (
-                              <div style={{ aspectRatio: "4 / 3", background: "#F7F1F6" }} />
-                            )}
+                            {entry.thumb
+                              ? <img src={entry.thumb} alt="Bouquet" style={{ width: "100%", aspectRatio: "4 / 3", objectFit: "cover" }} />
+                              : <div style={{ aspectRatio: "4 / 3", background: "#F7F1F6" }} />}
                             <div style={{ padding: "0.6rem" }}>
                               <p className="text-xs" style={{ color: "#8A7C87" }}>
                                 {new Date(entry.date).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" })}
                               </p>
                               <p className="text-xs font-medium mt-0.5" style={{ color: "#2B2230" }}>
-                                {entry.result && entry.result.fleurs && entry.result.fleurs[0] ? entry.result.fleurs[0].nom : "Bouquet"}
+                                {entry.result?.fleurs?.[0]?.nom || "Bouquet"}
                               </p>
-                              {entry.result && entry.result.palette ? (
-                                <p className="text-xs mt-0.5" style={{ color: "#9C6B82" }}>{entry.result.palette}</p>
-                              ) : null}
+                              {entry.result?.palette && <p className="text-xs mt-0.5" style={{ color: "#9C6B82" }}>{entry.result.palette}</p>}
                             </div>
                           </button>
-                          <button
-                            onClick={() => deleteHistoryEntry(entry.id)}
-                            className="text-xs w-full"
-                            style={{ color: "#B98A55", padding: "0.4rem", borderTop: "1px solid #EADFE8" }}
-                          >
+                          <button onClick={() => deleteHistoryEntry(entry.id)} className="text-xs w-full"
+                            style={{ color: "#B98A55", padding: "0.4rem", borderTop: "1px solid #EADFE8" }}>
                             Supprimer
                           </button>
                         </div>
@@ -427,36 +437,14 @@ export default function JardinDesSeves() {
           </div>
         ) : (
         <>
-        <div
-          className="dropzone"
-          onDragOver={(e) => {
-            e.preventDefault();
-            e.currentTarget.classList.add("drag");
-          }}
+        <div className="dropzone"
+          onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add("drag"); }}
           onDragLeave={(e) => e.currentTarget.classList.remove("drag")}
-          onDrop={(e) => {
-            e.preventDefault();
-            e.currentTarget.classList.remove("drag");
-            const file = e.dataTransfer.files && e.dataTransfer.files[0];
-            handleFile(file);
-          }}
-          onClick={() => fileInputRef.current && fileInputRef.current.click()}
-          style={{
-            border: "2px dashed #D8C3D4",
-            borderRadius: "1.25rem",
-            padding: uploadedImage ? "1rem" : "2.5rem 1.5rem",
-            textAlign: "center",
-            cursor: "pointer",
-            background: "#FFFFFF",
-          }}
-        >
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            style={{ display: "none" }}
-            onChange={(e) => handleFile(e.target.files && e.target.files[0])}
-          />
+          onDrop={(e) => { e.preventDefault(); e.currentTarget.classList.remove("drag"); handleFile(e.dataTransfer.files?.[0]); }}
+          onClick={() => fileInputRef.current?.click()}
+          style={{ border: "2px dashed #D8C3D4", borderRadius: "1.25rem", padding: uploadedImage ? "1rem" : "2.5rem 1.5rem", textAlign: "center", cursor: "pointer", background: "#FFFFFF" }}>
+          <input ref={fileInputRef} type="file" accept="image/*" style={{ display: "none" }}
+            onChange={(e) => handleFile(e.target.files?.[0])} />
           {!uploadedImage ? (
             <div>
               <div style={{ display: "flex", justifyContent: "center", marginBottom: "0.75rem" }}>
@@ -466,44 +454,31 @@ export default function JardinDesSeves() {
               <p className="text-xs mt-1" style={{ color: "#9C8C97" }}>ou clique pour choisir un fichier — JPG, PNG</p>
             </div>
           ) : (
-            <img
-              src={uploadedImage.dataUrl}
-              alt="Bouquet à analyser"
-              style={{ maxHeight: "320px", margin: "0 auto", borderRadius: "0.75rem", display: "block" }}
-            />
+            <img src={uploadedImage.dataUrl} alt="Bouquet à analyser"
+              style={{ maxHeight: "320px", margin: "0 auto", borderRadius: "0.75rem", display: "block" }} />
           )}
         </div>
 
         {uploadedImage && (
           <div className="flex items-center justify-center gap-3 mt-4">
             {uploadedImage.base64 && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  analyze();
-                }}
-                disabled={isAnalyzing}
+              <button onClick={(e) => { e.stopPropagation(); analyze(); }} disabled={isAnalyzing}
                 className="flex items-center gap-2 text-sm font-medium rounded-full px-5 py-2.5"
-                style={{ background: "#6B1F45", color: "#FFFFFF", opacity: isAnalyzing ? 0.7 : 1 }}
-              >
+                style={{ background: "#6B1F45", color: "#FFFFFF", opacity: isAnalyzing ? 0.7 : 1 }}>
                 <Sparkles size={16} /> {isAnalyzing ? "Analyse en cours…" : "Analyser ce bouquet"}
               </button>
             )}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                reset();
-              }}
+            <button onClick={(e) => { e.stopPropagation(); reset(); }}
               className="flex items-center gap-2 text-sm rounded-full px-4 py-2.5"
-              style={{ border: "1px solid #D8C3D4", color: "#6B5566" }}
-            >
+              style={{ border: "1px solid #D8C3D4", color: "#6B5566" }}>
               <RotateCcw size={14} /> {uploadedImage.base64 ? "Recommencer" : "Nouvelle photo"}
             </button>
           </div>
         )}
 
         {error && (
-          <div className="text-sm mt-6 rounded-xl px-4 py-3" style={{ background: "#FBEAEA", color: "#8A2D2D", border: "1px solid #F0C9C9" }}>
+          <div className="text-sm mt-6 rounded-xl px-4 py-3"
+            style={{ background: "#FBEAEA", color: "#8A2D2D", border: "1px solid #F0C9C9" }}>
             {error}
           </div>
         )}
@@ -511,37 +486,40 @@ export default function JardinDesSeves() {
         {result && (
           <div className="mt-10">
             <h2 className="jds-script" style={{ fontSize: "1.8rem", color: "#6B1F45" }}>Composition identifiée</h2>
-            {result.palette ? (
-              <span
-                className="inline-block text-xs font-medium mt-1 px-3 py-1 rounded-full"
-                style={{ background: "#F3E2EF", color: "#6B1F45" }}
-              >
+            {result.palette && (
+              <span className="inline-block text-xs font-medium mt-1 px-3 py-1 rounded-full"
+                style={{ background: "#F3E2EF", color: "#6B1F45" }}>
                 🎨 {result.palette}
               </span>
-            ) : null}
-            <div
-              style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: "0.9rem" }}
-              className="mt-3"
-            >
-              {result.fleurs.map((f, i) => (
-                <FlowerResultCard key={i} flower={f} />
-              ))}
+            )}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: "0.9rem" }} className="mt-3">
+              {result.fleurs.map((f, i) => <FlowerResultCard key={i} flower={f} />)}
             </div>
 
             <h2 className="jds-script mt-10" style={{ fontSize: "1.8rem", color: "#6B1F45" }}>Étapes pour le reproduire</h2>
             <ol className="mt-3 flex flex-col gap-3">
               {result.etapes.map((step, i) => (
                 <li key={i} className="flex gap-3 text-sm" style={{ color: "#2B2230" }}>
-                  <span
-                    className="flex items-center justify-center font-medium"
-                    style={{ width: 26, height: 26, borderRadius: 999, background: "#ECDFEB", color: "#6B1F45", flexShrink: 0, fontSize: "0.8rem" }}
-                  >
+                  <span className="flex items-center justify-center font-medium"
+                    style={{ width: 26, height: 26, borderRadius: 999, background: "#ECDFEB", color: "#6B1F45", flexShrink: 0, fontSize: "0.8rem" }}>
                     {i + 1}
                   </span>
                   <span style={{ paddingTop: "0.15rem" }}>{step}</span>
                 </li>
               ))}
             </ol>
+
+            {result.emballage && Array.isArray(result.emballage) && result.emballage.length > 0 && (
+              <div className="mt-10">
+                <h2 className="jds-script" style={{ fontSize: "1.8rem", color: "#6B1F45" }}>Suggestions d'emballage</h2>
+                <p className="text-xs mt-1 mb-3" style={{ color: "#8A7C87" }}>
+                  Propositions pensées pour mettre ce bouquet en valeur.
+                </p>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "0.9rem" }}>
+                  {result.emballage.map((p, i) => <EmballageCard key={i} proposition={p} index={i} />)}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -554,6 +532,11 @@ export default function JardinDesSeves() {
         </>
         )}
       </main>
+
+      <footer style={{ display: "flex", justifyContent: "center", padding: "2rem 1rem 1.5rem" }}>
+        <img src="/footer.png" alt="Jardin Des Sèves"
+          style={{ width: "100%", maxWidth: "340px", height: "auto", opacity: 0.92 }} />
+      </footer>
     </div>
   );
 }
