@@ -17,6 +17,22 @@ const ROLE_COLORS = {
   remplissage: "#B98A55",
 };
 
+const OCCASIONS_LIST = [
+  { label: "Mariage", emoji: "💍" },
+  { label: "Anniversaire", emoji: "🎂" },
+  { label: "Fête des mères", emoji: "💐" },
+  { label: "Saint-Valentin", emoji: "❤️" },
+  { label: "Naissance", emoji: "👶" },
+  { label: "Deuil et condoléances", emoji: "🕊️" },
+  { label: "Remerciement", emoji: "🙏" },
+  { label: "Amitié", emoji: "🤝" },
+  { label: "Romantique", emoji: "🌹" },
+  { label: "Professionnel", emoji: "💼" },
+  { label: "Baptême", emoji: "✨" },
+  { label: "Communion", emoji: "🌿" },
+  { label: "Décoration intérieure", emoji: "🏠" },
+];
+
 function resizeImage(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -173,7 +189,6 @@ function EmballageCard({ proposition, index }) {
   const c1 = guessColor(proposition.papierInterieur);
   const c2 = guessColor(proposition.papierExterieur);
   const c3 = guessColor(proposition.ruban);
-
   return (
     <div style={{ background: "#FFFFFF", border: "1px solid #EADFE8", borderRadius: "1rem", overflow: "hidden" }}>
       <div style={{ aspectRatio: "4 / 3", background: c2, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -236,8 +251,7 @@ export default function JardinDesSeves() {
   const [error, setError] = useState(null);
   const [result, setResult] = useState(null);
   const [history, setHistory] = useState([]);
-  const [showHistory, setShowHistory] = useState(false);
-  const [showPalette, setShowPalette] = useState(false);
+  const [activeTab, setActiveTab] = useState(null);
   const [historySearch, setHistorySearch] = useState("");
   const fileInputRef = useRef(null);
 
@@ -263,7 +277,8 @@ export default function JardinDesSeves() {
   function viewHistoryEntry(entry) {
     setResult(entry.result);
     setUploadedImage({ dataUrl: entry.thumb, base64: null, mediaType: null });
-    setShowHistory(false); setShowPalette(false); setError(null);
+    setActiveTab(null);
+    setError(null);
   }
 
   function deleteHistoryEntry(id) {
@@ -312,6 +327,10 @@ export default function JardinDesSeves() {
 
   function reset() { setUploadedImage(null); setResult(null); setError(null); }
 
+  function toggleTab(tab) {
+    setActiveTab((v) => v === tab ? null : tab);
+  }
+
   return (
     <div style={{ minHeight: "100vh", width: "100%", background: "#F7F1F6", color: "#2B2230", fontFamily: "'Quicksand', sans-serif" }}>
       <style>{`
@@ -348,21 +367,22 @@ export default function JardinDesSeves() {
       </header>
 
       <main style={{ maxWidth: "56rem", margin: "0 auto" }} className="px-4 sm:px-8 py-10">
-        <div className="flex items-center justify-end gap-2 mb-4">
-          <button onClick={() => { setShowPalette((v) => !v); setShowHistory(false); }}
-            className="text-sm rounded-full px-4 py-2"
-            style={{ border: "1px solid #D8C3D4", color: "#6B1F45", background: showPalette ? "#F3E2EF" : "transparent" }}>
-            Par couleur
-          </button>
-          <button onClick={() => { setShowHistory((v) => !v); setShowPalette(false); }}
-            className="text-sm rounded-full px-4 py-2"
-            style={{ border: "1px solid #D8C3D4", color: "#6B1F45", background: showHistory ? "#F3E2EF" : "transparent" }}>
-            Historique {history.length > 0 ? `(${history.length})` : ""}
-          </button>
+        <div className="flex items-center justify-end gap-2 mb-4" style={{ flexWrap: "wrap" }}>
+          {[
+            { key: "couleur", label: "Par couleur" },
+            { key: "occasion", label: "Par occasion" },
+            { key: "historique", label: history.length > 0 ? `Historique (${history.length})` : "Historique" },
+          ].map(({ key, label }) => (
+            <button key={key} onClick={() => toggleTab(key)}
+              className="text-sm rounded-full px-4 py-2"
+              style={{ border: "1px solid #D8C3D4", color: "#6B1F45", background: activeTab === key ? "#F3E2EF" : "transparent" }}>
+              {label}
+            </button>
+          ))}
         </div>
 
-        {showPalette ? (
-          <div>
+        {activeTab === "couleur" && (
+          <div className="mb-8">
             {(() => {
               const withPalette = history.filter((e) => e.result && e.result.palette);
               if (withPalette.length === 0) return (
@@ -393,8 +413,48 @@ export default function JardinDesSeves() {
               ));
             })()}
           </div>
-        ) : showHistory ? (
-          <div>
+        )}
+
+        {activeTab === "occasion" && (
+          <div className="mb-8">
+            {(() => {
+              const withOccasions = history.filter((e) => e.result && Array.isArray(e.result.occasions) && e.result.occasions.length > 0);
+              if (withOccasions.length === 0) return (
+                <p className="text-sm" style={{ color: "#8A7C87" }}>Aucun bouquet classé par occasion pour l'instant. Analyse un nouveau bouquet pour commencer.</p>
+              );
+              const groups = {};
+              OCCASIONS_LIST.forEach(({ label, emoji }) => {
+                const entries = withOccasions.filter((entry) =>
+                  entry.result.occasions.some((o) => normalize(o).includes(normalize(label)) || normalize(label).includes(normalize(o)))
+                );
+                if (entries.length > 0) groups[label] = { emoji, entries };
+              });
+              if (Object.keys(groups).length === 0) return (
+                <p className="text-sm" style={{ color: "#8A7C87" }}>Aucune catégorie reconnue pour l'instant.</p>
+              );
+              return Object.entries(groups).map(([label, group]) => (
+                <div key={label} className="mb-7">
+                  <h3 className="text-sm font-medium mb-2" style={{ color: "#6B1F45" }}>
+                    {group.emoji} {label} <span style={{ color: "#9C8C97", fontWeight: 400 }}>({group.entries.length})</span>
+                  </h3>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: "0.7rem" }}>
+                    {group.entries.map((entry) => (
+                      <button key={entry.id + label} onClick={() => viewHistoryEntry(entry)}
+                        style={{ background: "#FFFFFF", border: "1px solid #EADFE8", borderRadius: "0.85rem", overflow: "hidden", cursor: "pointer" }}>
+                        {entry.thumb
+                          ? <img src={entry.thumb} alt="Bouquet" style={{ width: "100%", aspectRatio: "4 / 3", objectFit: "cover" }} />
+                          : <div style={{ aspectRatio: "4 / 3", background: "#F7F1F6" }} />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ));
+            })()}
+          </div>
+        )}
+
+        {activeTab === "historique" && (
+          <div className="mb-8">
             {history.length === 0 ? (
               <p className="text-sm" style={{ color: "#8A7C87" }}>Aucune analyse enregistrée pour l'instant.</p>
             ) : (
@@ -441,8 +501,8 @@ export default function JardinDesSeves() {
               </>
             )}
           </div>
-        ) : (
-        <>
+        )}
+
         <div className="dropzone"
           onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add("drag"); }}
           onDragLeave={(e) => e.currentTarget.classList.remove("drag")}
@@ -491,11 +551,22 @@ export default function JardinDesSeves() {
         {result && (
           <div className="mt-10">
             <h2 className="jds-script" style={{ fontSize: "1.8rem", color: "#6B1F45" }}>Composition identifiée</h2>
-            {result.palette && (
-              <span className="inline-block text-xs font-medium mt-1 px-3 py-1 rounded-full" style={{ background: "#F3E2EF", color: "#6B1F45" }}>
-                🎨 {result.palette}
-              </span>
-            )}
+            <div className="flex flex-wrap gap-2 mt-1">
+              {result.palette && (
+                <span className="inline-block text-xs font-medium px-3 py-1 rounded-full" style={{ background: "#F3E2EF", color: "#6B1F45" }}>
+                  🎨 {result.palette}
+                </span>
+              )}
+              {Array.isArray(result.occasions) && result.occasions.map((occ, i) => {
+                const found = OCCASIONS_LIST.find((o) => normalize(occ).includes(normalize(o.label)) || normalize(o.label).includes(normalize(occ)));
+                const emoji = found ? found.emoji : "✿";
+                return (
+                  <span key={i} className="inline-block text-xs font-medium px-3 py-1 rounded-full" style={{ background: "#EAF0EA", color: "#39553D" }}>
+                    {emoji} {occ}
+                  </span>
+                );
+              })}
+            </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: "0.9rem" }} className="mt-3">
               {result.fleurs.map((f, i) => <FlowerResultCard key={i} flower={f} />)}
             </div>
@@ -516,9 +587,7 @@ export default function JardinDesSeves() {
             {result.emballage && Array.isArray(result.emballage) && result.emballage.length > 0 && (
               <div className="mt-10">
                 <h2 className="jds-script" style={{ fontSize: "1.8rem", color: "#6B1F45" }}>Suggestions d'emballage</h2>
-                <p className="text-xs mt-1 mb-3" style={{ color: "#8A7C87" }}>
-                  Propositions pensées pour mettre ce bouquet en valeur.
-                </p>
+                <p className="text-xs mt-1 mb-3" style={{ color: "#8A7C87" }}>Propositions pensées pour mettre ce bouquet en valeur.</p>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: "0.9rem" }}>
                   {result.emballage.map((p, i) => <EmballageCard key={i} proposition={p} index={i} />)}
                 </div>
@@ -532,8 +601,6 @@ export default function JardinDesSeves() {
             <Flower2 size={28} />
             <p className="text-sm mt-2">En attente d'une photo de bouquet à analyser.</p>
           </div>
-        )}
-        </>
         )}
       </main>
 
