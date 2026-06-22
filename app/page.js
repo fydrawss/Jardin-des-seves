@@ -86,15 +86,30 @@ function extractJson(text) {
 
 async function fetchFlowerImage(term) {
   try {
-    const url = `https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(
-      term
-    )}&gsrlimit=1&prop=pageimages&piprop=thumbnail&pithumbsize=440&format=json&origin=*`;
+    const url = `https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(term)}&gsrlimit=1&prop=pageimages&piprop=thumbnail&pithumbsize=440&format=json&origin=*`;
     const res = await fetch(url);
     const data = await res.json();
     const pages = data.query && data.query.pages;
     if (!pages) return null;
     const page = Object.values(pages)[0];
     return page && page.thumbnail ? page.thumbnail.source : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+async function fetchWrappingImage(term) {
+  try {
+    const url = `https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(term)}&gsrlimit=3&prop=pageimages&piprop=thumbnail&pithumbsize=440&format=json&origin=*`;
+    const res = await fetch(url);
+    const data = await res.json();
+    const pages = data.query && data.query.pages;
+    if (!pages) return null;
+    const pagesArr = Object.values(pages);
+    for (const page of pagesArr) {
+      if (page.thumbnail) return page.thumbnail.source;
+    }
+    return null;
   } catch (e) {
     return null;
   }
@@ -162,27 +177,54 @@ function FlowerResultCard({ flower }) {
 }
 
 function EmballageCard({ proposition, index }) {
+  const [imgSrc, setImgSrc] = useState(null);
+  const [imgState, setImgState] = useState("loading");
+
+  useEffect(() => {
+    let cancelled = false;
+    setImgState("loading");
+    const term = proposition.rechercheImage || "florist paper wrapping bouquet";
+    fetchWrappingImage(term).then((src) => {
+      if (cancelled) return;
+      if (src) { setImgSrc(src); setImgState("ok"); }
+      else setImgState("empty");
+    });
+    return () => { cancelled = true; };
+  }, [proposition.rechercheImage]);
+
   return (
-    <div style={{ background: "#FFFFFF", border: "1px solid #EADFE8", borderRadius: "1rem", padding: "1rem" }}>
-      <p className="text-xs font-semibold mb-2" style={{ color: "#6B1F45" }}>Proposition {index + 1}</p>
-      <div className="flex flex-col gap-1.5">
-        <div className="flex gap-2 text-xs" style={{ color: "#2B2230" }}>
-          <span style={{ color: "#9C6B82", flexShrink: 0 }}>Papier intérieur</span>
-          <span>{proposition.papierInterieur}</span>
-        </div>
-        <div className="flex gap-2 text-xs" style={{ color: "#2B2230" }}>
-          <span style={{ color: "#9C6B82", flexShrink: 0 }}>Papier extérieur</span>
-          <span>{proposition.papierExterieur}</span>
-        </div>
-        <div className="flex gap-2 text-xs" style={{ color: "#2B2230" }}>
-          <span style={{ color: "#9C6B82", flexShrink: 0 }}>Ruban</span>
-          <span>{proposition.ruban}</span>
-        </div>
-        {proposition.harmonie && (
-          <p className="text-xs mt-1 pt-1" style={{ color: "#8A7C87", borderTop: "1px solid #F3EAF1" }}>
-            {proposition.harmonie}
-          </p>
+    <div style={{ background: "#FFFFFF", border: "1px solid #EADFE8", borderRadius: "1rem", overflow: "hidden" }}>
+      <div style={{ aspectRatio: "4 / 3", background: "#F7F1F6", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        {imgState === "loading" && <span style={{ fontSize: "0.75rem", color: "#9C6B82" }}>chargement…</span>}
+        {imgState === "ok" && <img src={imgSrc} alt="Emballage" style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
+        {imgState === "empty" && (
+          <svg viewBox="0 0 40 40" width="44" height="44">
+            <rect x="8" y="12" width="24" height="20" rx="2" fill="none" stroke="#D8C3D4" strokeWidth="2" />
+            <path d="M8 18 Q20 24 32 18" stroke="#D8C3D4" strokeWidth="1.5" fill="none" />
+          </svg>
         )}
+      </div>
+      <div style={{ padding: "0.9rem" }}>
+        <p className="text-xs font-semibold mb-2" style={{ color: "#6B1F45" }}>Proposition {index + 1}</p>
+        <div className="flex flex-col gap-1.5">
+          <div className="flex gap-2 text-xs" style={{ color: "#2B2230" }}>
+            <span style={{ color: "#9C6B82", flexShrink: 0, minWidth: 90 }}>Papier intérieur</span>
+            <span>{proposition.papierInterieur}</span>
+          </div>
+          <div className="flex gap-2 text-xs" style={{ color: "#2B2230" }}>
+            <span style={{ color: "#9C6B82", flexShrink: 0, minWidth: 90 }}>Papier extérieur</span>
+            <span>{proposition.papierExterieur}</span>
+          </div>
+          <div className="flex gap-2 text-xs" style={{ color: "#2B2230" }}>
+            <span style={{ color: "#9C6B82", flexShrink: 0, minWidth: 90 }}>Ruban</span>
+            <span>{proposition.ruban}</span>
+          </div>
+          {proposition.harmonie && (
+            <p className="text-xs mt-1 pt-1" style={{ color: "#8A7C87", borderTop: "1px solid #F3EAF1" }}>
+              {proposition.harmonie}
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -515,7 +557,7 @@ export default function JardinDesSeves() {
                 <p className="text-xs mt-1 mb-3" style={{ color: "#8A7C87" }}>
                   Propositions pensées pour mettre ce bouquet en valeur.
                 </p>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "0.9rem" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: "0.9rem" }}>
                   {result.emballage.map((p, i) => <EmballageCard key={i} proposition={p} index={i} />)}
                 </div>
               </div>
