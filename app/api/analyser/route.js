@@ -7,17 +7,17 @@ Réponds UNIQUEMENT avec un objet JSON valide, sans texte avant ni après, sans 
   ],
   "etapes": ["étape 1", "étape 2"],
   "emballage": [
-    { "papierInterieur": "couleur et matière du papier intérieur", "papierExterieur": "couleur et matière du papier extérieur", "ruban": "couleur et type de ruban", "harmonie": "explication courte du choix des couleurs" }
+    { "papierInterieur": "couleur et matière du papier intérieur", "papierExterieur": "couleur et matière du papier extérieur", "ruban": "couleur et type de ruban", "harmonie": "explication courte du choix des couleurs", "rechercheImage": "mot-clé en anglais pour trouver une image de cet emballage floral" }
   ]
 }
 Le champ "palette" décrit en 2 à 4 mots la tonalité chromatique du bouquet (ex: "Rosé pastel", "Champagne et crème", "Blanc et verdure").
 Le champ "role" doit être : "vedette", "soutien", "feuillage" ou "remplissage".
 Le champ "quantite" est le nombre de tiges estimé (entier).
 Le champ "note" est une courte précision si doute, sinon chaîne vide.
-Le champ "saisons" liste parmi "printemps", "été", "automne", "hiver" les saisons naturelles de floraison sous climat tempéré français. Si disponible toute l'année, mets les 4 saisons.
-Limite-toi à 8 éléments maximum dans "fleurs".
+Le champ "saisons" liste parmi "printemps", "été", "automne", "hiver" les saisons de floraison naturelle sous climat tempéré français. Si disponible toute l'année, mets les 4 saisons.
+Sois EXHAUSTIF sur les fleurs : identifie toutes les variétés visibles, même partiellement, jusqu'à 12 éléments maximum. Ne laisse aucune fleur ou feuillage non identifié.
 Le champ "etapes" contient 5 à 7 étapes concises d'assemblage dans l'ordre professionnel.
-Le champ "emballage" contient 2 propositions d'emballage complémentaires qui mettent en valeur ce bouquet spécifique. Pour chaque proposition, pense au cercle chromatique : contraste, analogie ou camaïeu. Sois précis sur les matières (papier kraft, papier de soie, papier feutré, papier calque, raphia, bolduc, ruban satiné, etc.).
+Le champ "emballage" contient 2 propositions complémentaires qui mettent en valeur ce bouquet. Pense au cercle chromatique. Sois précis sur les matières (papier kraft, papier de soie, papier feutré, papier calque, raphia, bolduc, ruban satiné, etc.). Le champ "rechercheImage" est un terme en anglais décrivant l'emballage pour une recherche d'image (ex: "kraft paper florist bouquet", "pink tissue paper flower wrapping", "white satin ribbon bouquet").
 Sois concis et précis.`;
 
 export async function POST(request) {
